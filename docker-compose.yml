@@ -1,0 +1,51 @@
+name: restaurant-menu-local
+
+services:
+  restaurant-menu-postgres:
+    image: postgres:18
+    container_name: restaurant-menu-postgres
+    environment:
+      POSTGRES_DB: restaurant_menu_db
+      POSTGRES_USER: restaurant_menu_user
+      POSTGRES_PASSWORD: restaurant_menu_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${MENU_POSTGRES_PORT:-15434}:5432"
+    volumes:
+      - restaurant_menu_postgres_data:/var/lib/postgresql/data
+    networks:
+      - restaurant-menu-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U restaurant_menu_user -d restaurant_menu_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  restaurant-menu-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: restaurant-menu-service
+    environment:
+      HTTP_PORT: 8080
+      DATABASE_HOST: restaurant-menu-postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: restaurant_menu_db
+      DATABASE_USER: restaurant_menu_user
+      DATABASE_PASSWORD: restaurant_menu_password
+      DATABASE_SSLMODE: disable
+    ports:
+      - "${MENU_SERVICE_PORT:-18082}:8080"
+    depends_on:
+      restaurant-menu-postgres:
+        condition: service_healthy
+    networks:
+      - restaurant-menu-network
+
+volumes:
+  restaurant_menu_postgres_data:
+    name: restaurant_menu_postgres_data
+
+networks:
+  restaurant-menu-network:
+    name: restaurant-menu-network
